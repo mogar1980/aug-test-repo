@@ -213,10 +213,32 @@
       
       openChannel = function() {
         var token = '{{ token }}';
+        var channel_id = '{{ channel_id }}';
         // TODO: delete line below //
         //var channel = new goog.appengine.Channel(token);
-        channel = firebase.database().ref('test-04/u_id/' + token);
-        console.log('created firebase database reference: ' + 'test-04/u_id/' + token); //debugging info
+        firebase.auth().signInWithCustomToken(token).catch(function(error) {
+  			console.log("Login Failed!", error.code);
+  			console.log("Error message: ", error.message);
+  		});
+
+  		firebase.auth().onAuthStateChanged(function(user) {
+  			if (user) {
+    		// User is signed in.
+    			var isAnonymous = user.isAnonymous;
+    			var uid = user.uid;
+    			user.uid = 'TESTING';
+    			console.log('the old user was=', uid);
+    			console.log('the current user is=', user.uid);
+    			// ...
+  			} else {
+    			// User is signed out.
+    			// ...
+  			}
+  			// ...
+		});
+
+        channel = firebase.database().ref('channels/' + channel_id);
+        console.log('created firebase database reference: ' + 'channels/' + channel_id); //debugging info
         channel.on('value', function(data) {
   			console.log('value change event with data: ' + data.val()); //debugging info
   			onMessage(data.val());

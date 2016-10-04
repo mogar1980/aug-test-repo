@@ -25,8 +25,40 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp.util import run_wsgi_app
 
-# static url for updates #
-fire_url = 'https://imposing-mind-131903.firebaseio.com/test-04/u_id/'
+import jwt  # Requires: pip install python-jwt
+import Crypto.PublicKey.RSA as RSA  # Requires: pip install pycrypto
+
+import firebase_token_generator as fb_token_generator
+# see if this actually works #
+
+# Firebase database url #
+fire_url = 'https://imposing-mind-131903.firebaseio.com/channels/'
+# Firebase database server authorization key #
+fire_db_key = '1O9VkxnyjEvbRIx1dLohPDZmhxqDjJgsPqikHwW7'
+# Get your service account's email address and private key from the JSON key file
+service_account_email = "imposing-mind-131903@appspot.gserviceaccount.com"
+#private_key = RSA.importKey("-----BEGIN PRIVATE KEY-----\n...")
+private_key = RSA.importKey("-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQCh360T6TwZHQVE\nwWxABahw0pFc+331Kq9b7AdkfCcCpoFOTPkJR1a6sOKS+Veb7G5eJUg6k7/8BJ/Z\ntQwyf/1UPo8SvsixYprOuH9MO34Wqh9O1vpq0lBy6FX7Bxq5jlbJOrVgJBgNWBnv\nMRnphQhRHQmpzA9mLEfToqHzfCJP91DGJYRGcuEEH/0QOgc8Lkvmyc7dBgNxakS9\nwGvSJ+aZ/7+HYyEo2oVpFkj1rvVJf6FxcXoqep6UuK/BpeQ2HbB+gLvEaWSLtgT3\ncR4imuN6sGPYjOqc+PC/optegiI/1gdcRyVEDR6B+LwWkpjq+ciXFlPLHLvMuW0R\nIL1wLnMtAgMBAAECggEBAJ3UldFALFTgMu7jGUUjPyUiapGatSmCwRCDhoG3e+Hd\nr15FNtyRLkNBjOl5LK7fTI2HFHHo9dwoNiPznzzuBndJt/6y/sPWPNMqmRQfPcWj\ngntAqVHWVpJzbsIgHzKlUoFKOObQypLYQBE0cut5xq4v/egNC0a4DiCQBhB+DIai\nNI3k3Zu1/CxfBuzFZOFlu77m/xV3TiYbRwHkHDOAVqY7XaFdnmSD9XsAgDGJAaPA\nDYl5Zqey1qjn+PtBFbA2JxvrJS75PrvFq8DRq7p1dX0mQ6priIJIo4DEWgZVe7EH\nCXYNAFLKuPL2UphOdDTlIwjsUIrgaCh5oVNBwxedcxECgYEA0IGWd7nygeQ2hGJR\nybhYy+7T7xzrwIqrSQWXL5fahGUp2J/x5IDMk3+Iyk8g43O5UgQEeYZBLdcjsrti\nob83WS2G1LN2VtoH5zsB1tzn12uh2lT2+10JhOVW8fCPGsQrFF2ynZKkY2QOjEW3\nT4LeNBl25+vriDL5+qAlHgospSMCgYEAxr7bL5v7t35JYlNAlGhXL5m45AsS/M1b\nTZYs7b0Ys2ECLgEV3PZgHQYZ9Rl7UtyUGUG2t5hP0WN6ihysaYMkvsw3OdvtylpP\nXKwlxPTEqKk8E7orkIzuUw5s81/RNVIWf9FxnjWB4BBYMUN6v/ZnmmVMoVGPINDR\nmKAdvx9d028CgYEAlKiwJTC4jI+vpveKpK4A8XWYOVV/aMn1kZygzFgSfm66RS7U\ngjyqn0dAui1sn3601Jr0rchg1FQdqaMckYIJ7lUdWq2RZB8Tn3NcvlrGGbstrMMD\nTPhqfwwcz2baQRU4Oc8MOHiDKDIAhVZ3egMudirpsjVsurDNtjlT/XT3m80CgYEA\nlpEtGOqBTshb7CPKPyS1OJirHAjPv7oMO8FUFGA4AF2z+wpTd+0nb5WZwLgnV+VI\nRcIlHP5FKgrFYTDL5bu28N1h0XGuuqikiz7X9ljBTE259/AI5R//xeid3dtvcYfZ\nB8iy3PsIg6meRuQqcJfKcYvg/C3/0wqgX5KeNpcay/0CgYAxm3iYvUKDh/az5JNA\nATgnxTDDaZASaIjYLfdctqMDb90vIyQvq+JlKD85F3jy8Z5mlbDIxEzM7MkJn1yR\nJB7kB+dUxVLbuuzFMggbbURylVgtMzmddub7LfN8nAQ8EV8Fp4oYdDhcioPI6Qhi\n81se59mK/q33B7iX8GvyPf/pIQ==\n-----END PRIVATE KEY-----\n")
+
+
+def create_custom_token(uid):
+  try:
+    payload = {
+      "iss": service_account_email,
+      "sub": service_account_email,
+      "aud": "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
+      "uid": uid
+    }
+    exp = datetime.timedelta(minutes=60)
+    return jwt.generate_jwt(payload, private_key, "RS256", exp)
+  except Exception as e:
+    print "Error creating custom token: " + e.message
+    return None
+
+# auth token for the server--will be generated on initialization
+# gae_auth_token = fb_token_generator.create_token(fire_db_key,{"uid": "gae-instance", "provider": "gae"}) # old token
+gae_auth_token = fire_db_key # gives the server full write access to Firebase
+
 
 class Game(db.Model):
   """All the data we store for a game"""
@@ -161,10 +193,9 @@ class FireChannel():
 			else: 
 				method_type = urlfetch.PATCH
 			# always using patch in this example for writes
-			# becuase it updates or creates but never overwrites
-			# payload='{"message": "' + urllib.quote_plus(message) + '"}',
+			# because it updates or creates but never overwrites
 			result = urlfetch.fetch(
-        		url=self.base_url + u_id + '.json', # create a new stream using unique id
+        		url=self.base_url + u_id + '.json?auth=' + gae_auth_token, # create a new stream using unique id and server auth key
         		payload=message,
         		method=method_type,
         		headers=headers,
@@ -183,6 +214,7 @@ class MainPage(webapp.RequestHandler):
   def get(self):
     """Renders the main page. When this page is shown, we create a new
     channel to push asynchronous updates to the client."""
+
     user = users.get_current_user()
     game_key = self.request.get('g')
     game = None
@@ -205,12 +237,15 @@ class MainPage(webapp.RequestHandler):
       if game:
         # TODO: remove next line
         #token = channel.create_channel(user.user_id() + game_key)
-        token = user.user_id() + game_key
-        output = FireChannel(fire_url).send_message(	u_id=token,
+        channel_id = user.user_id() + game_key
+        client_auth_token = create_custom_token(channel_id)
+        output = FireChannel(fire_url).send_message(	u_id=channel_id,
         							message=GameUpdater(game).get_game_message(),
         							is_delete=False)
         self.response.out.write(output) # debugging
-        template_values = {'token': token,
+        self.response.out.write('client token=' + client_auth_token) # more debugging -- want to see whether tokens match
+        template_values = {'token': client_auth_token,
+        				   'channel_id': channel_id,
                            'me': user.user_id(),
                            'game_key': game_key,
                            'game_link': game_link,
