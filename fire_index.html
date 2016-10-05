@@ -4,12 +4,12 @@
   <script src="https://www.gstatic.com/firebasejs/3.3.2/firebase.js"></script>
   <!-- <script src="https://www.gstatic.com/firebasejs/3.3.0/firebase-database.js"></script> -->
   <script>
-  	// Initialize Firebase
+  	// Initialize Firebase object
   	var config = {
     	apiKey: "AIzaSyB_pwNiBi8Q3iakJitkQHtEQ5SZWmp9EiY",
-    	authDomain: "imposing-mind-131903.firebaseapp.com",
-    	databaseURL: "https://imposing-mind-131903.firebaseio.com",
-    	storageBucket: "imposing-mind-131903.appspot.com"
+    	//authDomain: "imposing-mind-131903.firebaseapp.com",
+    	databaseURL: "https://imposing-mind-131903.firebaseio.com"
+    	//storageBucket: "imposing-mind-131903.appspot.com"
   	};
   	firebase.initializeApp(config);
   </script>
@@ -96,7 +96,7 @@
       };
 
       // This is our Firebase realtime DB path that we'll listen to for updates
-      // We'll initialize this later in openChannel
+      // We'll initialize this later in openChannel()
       var channel = null;
 
       updateGame = function() {
@@ -154,6 +154,7 @@
         return state.userX == state.me ? 'X' : 'O';
       }
 
+      // This message sends POST requests back to the App Engine server
       sendMessage = function(path, opt_param) {
         path += '?g=' + state.game_key;
         if (opt_param) {
@@ -164,6 +165,7 @@
         xhr.send();
       };
 
+      // Send the user's latest move back to the server
       moveInSquare = function(id) {
         if (isMyMove() && state.board[id] == ' ') {
           sendMessage('/move', 'i=' + id);
@@ -189,14 +191,23 @@
         }
       }
       
+      // This method lets the server know that the user has opened the channel
+      // After this method is called, the server may begin to send updates
       onOpened = function() {
         sendMessage('/opened');
       };
+
+      // This deletes the data associated with the Firebase path
+      // it is critical that this data be deleted since it costs money
+      deleteChannel = function() {
+        sendMessage('/delete');
+      };
       
+      // This method is called every time an event is fired from Firebase
+      // it updates the entire game state and checks for a winner
+      // if a player has won the game, this function calls the server to delete
+      // the data stored in Firebase
       onMessage = function(m) {
-        console.log('calling onMessage'); //debugging info
-        console.log(m);
-        //newState = JSON.parse(m.data);
         newState = m;
         state.board = newState.board || state.board;
         state.userX = newState.userX || state.userX;
@@ -205,57 +216,41 @@
         state.winner = newState.winner || "";
         state.winningBoard = newState.winningBoard || "";
         updateGame();
+        // now check to see if there is a winner //
         if (channel && state.winner != '' && state.winningBoard != '') {
         	channel.off(); //stop listening on this path
-        	channel.remove(); //delete the data we wrote
+        	deleteChannel(); //delete the data we wrote
         }
       }
       
+      // This function opens a realtime communication channel with Firebase
+      // It logs in securely using the client token passed from the server
+      // then it sets up a listener on the proper database path (also passed by server)
+      // finally, it calls onOpened() to let the server know it is ready to receive messages
       openChannel = function() {
-        var token = '{{ token }}';
-        var channel_id = '{{ channel_id }}';
-        // TODO: delete line below //
-        //var channel = new goog.appengine.Channel(token);
+        var token = '{{ token }}'; // secure token passed from the server //
+        var channel_id = '{{ channel_id }}'; // id of the 'channel' we'll be listening to //
+        
+        // sign into Firebase with the token passed from the server
         firebase.auth().signInWithCustomToken(token).catch(function(error) {
   			console.log("Login Failed!", error.code);
   			console.log("Error message: ", error.message);
   		});
 
-  		firebase.auth().onAuthStateChanged(function(user) {
-  			if (user) {
-    		// User is signed in.
-    			var isAnonymous = user.isAnonymous;
-    			var uid = user.uid;
-    			user.uid = 'TESTING';
-    			console.log('the old user was=', uid);
-    			console.log('the current user is=', user.uid);
-    			// ...
-  			} else {
-    			// User is signed out.
-    			// ...
-  			}
-  			// ...
-		});
-
+        // setup a database reference at path /channels/channel_id
         channel = firebase.database().ref('channels/' + channel_id);
-        console.log('created firebase database reference: ' + 'channels/' + channel_id); //debugging info
+        // add a listener to the path that fires any time the value of the data changes
         channel.on('value', function(data) {
-  			console.log('value change event with data: ' + data.val()); //debugging info
   			onMessage(data.val());
 		});
 		onOpened();
-        // TODO: delete lines below //
-        /* var handler = {
-          'onopen': onOpened,
-          'onmessage': onMessage,
-          'onerror': function() {},
-          'onclose': function() {}
-        };
-        var socket = channel.open(handler);
-        socket.onopen = onOpened;
-        socket.onmessage = onMessage; */
+		// let the server know that the channel is open
       }
       
+      // This function opens a communication channel with the server
+      // then it adds listeners to all the squares on the board
+      // next it pulls down the initial game state from template values
+      // finally it updates the game state with those values by calling onMessage()
       initialize = function() {
         openChannel();
         var i;
@@ -264,7 +259,8 @@
           square.onmouseover = new Function('highlightSquare(' + i + ')');
           square.onclick = new Function('moveInSquare(' + i + ')');
         }
-        onMessage({data: '{{ initial_message }}'});
+        initial_message = {{ initial_message|safe }};  // use the |safe flag to get unescaped json to render //
+        onMessage(initial_message);
       }      
 
       setTimeout(initialize, 100);

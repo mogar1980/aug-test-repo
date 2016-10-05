@@ -28,19 +28,23 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 import jwt  # Requires: pip install python-jwt
 import Crypto.PublicKey.RSA as RSA  # Requires: pip install pycrypto
 
-import firebase_token_generator as fb_token_generator
-# see if this actually works #
-
-# Firebase database url #
+# Firebase database url/channels#
 fire_url = 'https://imposing-mind-131903.firebaseio.com/channels/'
 # Firebase database server authorization key #
+# This is used to authenticate the server and authorize write access
 fire_db_key = '1O9VkxnyjEvbRIx1dLohPDZmhxqDjJgsPqikHwW7'
 # Get your service account's email address and private key from the JSON key file
 service_account_email = "imposing-mind-131903@appspot.gserviceaccount.com"
-#private_key = RSA.importKey("-----BEGIN PRIVATE KEY-----\n...")
+# private_key = RSA.importKey("-----BEGIN PRIVATE KEY-----\n...")
+# NOTE: NEVER put secret credentials in code. This is done in this example solely
+# for convenience purposes. Best practice is to keep this information in a
+# separate file that can be referenced by your code
 private_key = RSA.importKey("-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQCh360T6TwZHQVE\nwWxABahw0pFc+331Kq9b7AdkfCcCpoFOTPkJR1a6sOKS+Veb7G5eJUg6k7/8BJ/Z\ntQwyf/1UPo8SvsixYprOuH9MO34Wqh9O1vpq0lBy6FX7Bxq5jlbJOrVgJBgNWBnv\nMRnphQhRHQmpzA9mLEfToqHzfCJP91DGJYRGcuEEH/0QOgc8Lkvmyc7dBgNxakS9\nwGvSJ+aZ/7+HYyEo2oVpFkj1rvVJf6FxcXoqep6UuK/BpeQ2HbB+gLvEaWSLtgT3\ncR4imuN6sGPYjOqc+PC/optegiI/1gdcRyVEDR6B+LwWkpjq+ciXFlPLHLvMuW0R\nIL1wLnMtAgMBAAECggEBAJ3UldFALFTgMu7jGUUjPyUiapGatSmCwRCDhoG3e+Hd\nr15FNtyRLkNBjOl5LK7fTI2HFHHo9dwoNiPznzzuBndJt/6y/sPWPNMqmRQfPcWj\ngntAqVHWVpJzbsIgHzKlUoFKOObQypLYQBE0cut5xq4v/egNC0a4DiCQBhB+DIai\nNI3k3Zu1/CxfBuzFZOFlu77m/xV3TiYbRwHkHDOAVqY7XaFdnmSD9XsAgDGJAaPA\nDYl5Zqey1qjn+PtBFbA2JxvrJS75PrvFq8DRq7p1dX0mQ6priIJIo4DEWgZVe7EH\nCXYNAFLKuPL2UphOdDTlIwjsUIrgaCh5oVNBwxedcxECgYEA0IGWd7nygeQ2hGJR\nybhYy+7T7xzrwIqrSQWXL5fahGUp2J/x5IDMk3+Iyk8g43O5UgQEeYZBLdcjsrti\nob83WS2G1LN2VtoH5zsB1tzn12uh2lT2+10JhOVW8fCPGsQrFF2ynZKkY2QOjEW3\nT4LeNBl25+vriDL5+qAlHgospSMCgYEAxr7bL5v7t35JYlNAlGhXL5m45AsS/M1b\nTZYs7b0Ys2ECLgEV3PZgHQYZ9Rl7UtyUGUG2t5hP0WN6ihysaYMkvsw3OdvtylpP\nXKwlxPTEqKk8E7orkIzuUw5s81/RNVIWf9FxnjWB4BBYMUN6v/ZnmmVMoVGPINDR\nmKAdvx9d028CgYEAlKiwJTC4jI+vpveKpK4A8XWYOVV/aMn1kZygzFgSfm66RS7U\ngjyqn0dAui1sn3601Jr0rchg1FQdqaMckYIJ7lUdWq2RZB8Tn3NcvlrGGbstrMMD\nTPhqfwwcz2baQRU4Oc8MOHiDKDIAhVZ3egMudirpsjVsurDNtjlT/XT3m80CgYEA\nlpEtGOqBTshb7CPKPyS1OJirHAjPv7oMO8FUFGA4AF2z+wpTd+0nb5WZwLgnV+VI\nRcIlHP5FKgrFYTDL5bu28N1h0XGuuqikiz7X9ljBTE259/AI5R//xeid3dtvcYfZ\nB8iy3PsIg6meRuQqcJfKcYvg/C3/0wqgX5KeNpcay/0CgYAxm3iYvUKDh/az5JNA\nATgnxTDDaZASaIjYLfdctqMDb90vIyQvq+JlKD85F3jy8Z5mlbDIxEzM7MkJn1yR\nJB7kB+dUxVLbuuzFMggbbURylVgtMzmddub7LfN8nAQ8EV8Fp4oYdDhcioPI6Qhi\n81se59mK/q33B7iX8GvyPf/pIQ==\n-----END PRIVATE KEY-----\n")
 
-
+# This method is used to create secure custom tokens to be passed to clients
+# it takes a unique id (uid) that will be used by Firebase's security rules
+# to prevent unauthorized access. In this case, the uid will be the channel id
+# which is a combination of user_id and game_key
 def create_custom_token(uid):
   try:
     payload = {
@@ -56,7 +60,6 @@ def create_custom_token(uid):
     return None
 
 # auth token for the server--will be generated on initialization
-# gae_auth_token = fb_token_generator.create_token(fire_db_key,{"uid": "gae-instance", "provider": "gae"}) # old token
 gae_auth_token = fire_db_key # gives the server full write access to Firebase
 
 
@@ -105,17 +108,15 @@ class GameUpdater():
 
   def send_update(self):
     message = self.get_game_message()
+    # send updated game state to user X
     FireChannel(fire_url).send_message(	u_id=self.game.userX.user_id() + self.game.key().id_or_name(), 
     									message=message,
     									is_delete=False)
-    # TODO: delete channel call below
-    #channel.send_message(self.game.userX.user_id() + self.game.key().id_or_name(), message)
+    # send updated game state to user O
     if self.game.userO:
     	FireChannel(fire_url).send_message(	u_id=self.game.userO.user_id() + self.game.key().id_or_name(), 
     									message=message,
     									is_delete=False)
-      # TODO: delete channel call below
-      # channel.send_message(self.game.userO.user_id() + self.game.key().id_or_name(), message)
 
   def check_win(self):
     if self.game.moveX:
@@ -169,6 +170,15 @@ class MovePage(webapp.RequestHandler):
       id = int(self.request.get('i'))
       GameUpdater(game).make_move(id, user)
 
+class DeletePage(webapp.RequestHandler):
+
+  def post(self):
+    game = GameFromRequest(self.request).get_game()
+    user = users.get_current_user()
+    if game and user:
+      FireChannel(fire_url).send_message(u_id=user.user_id() + game.key().id_or_name(), 
+    									message=None,
+    									is_delete=True)
 
 class OpenedPage(webapp.RequestHandler):
   def post(self):
@@ -176,8 +186,10 @@ class OpenedPage(webapp.RequestHandler):
     GameUpdater(game).send_update()
 
 # This class has a set of helper functions on top of url fetch to make it easier
-# to send commands to Firebase
-# 
+# to send commands to Firebase. It consists of a constructor that saves the
+# Firebase database URL. In addition, it implements send_message, which updates
+# a path on Firebase based on the unique identifier u_id. In this example
+# u_id == channel_id == user_id + game_key
 class FireChannel():
 	base_url = None
 
@@ -235,21 +247,23 @@ class MainPage(webapp.RequestHandler):
       game_link = 'http://localhost:8080/?g=' + game_key
 
       if game:
-        # TODO: remove next line
-        #token = channel.create_channel(user.user_id() + game_key)
+        # choose a unique identifier for channel_id
         channel_id = user.user_id() + game_key
+        # encrypt the channel_id and send it as a custom token to the client
+        # Firebase's data security rules will be able to decrypt the token
+        # and prevent unauthorized access
         client_auth_token = create_custom_token(channel_id)
         output = FireChannel(fire_url).send_message(	u_id=channel_id,
         							message=GameUpdater(game).get_game_message(),
         							is_delete=False)
-        self.response.out.write(output) # debugging
-        self.response.out.write('client token=' + client_auth_token) # more debugging -- want to see whether tokens match
+
+        # push all the data to the html template so the client will have access
         template_values = {'token': client_auth_token,
         				   'channel_id': channel_id,
                            'me': user.user_id(),
                            'game_key': game_key,
                            'game_link': game_link,
-                           'initial_message': GameUpdater(game).get_game_message()
+                           'initial_message': urllib.unquote(GameUpdater(game).get_game_message())
                           }
         path = os.path.join(os.path.dirname(__file__), 'fire_index.html')
 
@@ -263,6 +277,7 @@ class MainPage(webapp.RequestHandler):
 application = webapp.WSGIApplication([
     ('/', MainPage),
     ('/opened', OpenedPage),
+    ('/delete', DeletePage),
     ('/move', MovePage)], debug=True)
 
 
