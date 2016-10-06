@@ -149,6 +149,10 @@ class Game(db.Model):
                 self.winning_board = win.pattern
                 return
 
+        # In case of a draw, everyone loses.
+        if ' ' not in self.board:
+            self.winner = 'Noone'
+
     def make_move(self, position, user):
         if (position >= 0 and user == self.userX) or (
                 user == self.userO):
@@ -191,8 +195,9 @@ def delete():
     if not game:
         return 'Game not found', 400
     user = users.get_current_user()
-    return _send_firebase_message(
-        user.user_id() + game.key().id_or_name(), message=None) or ''
+    _send_firebase_message(
+        user.user_id() + game.key().id_or_name(), message=None)
+    return ''
 
 
 @app.route('/opened', methods=['POST'])
@@ -217,7 +222,7 @@ def main_page():
         game_key = user.user_id()
         game = Game(
             key_name=game_key, userX=user, moveX=True,
-            board='                 ')
+            board=' '*9)
         game.put()
     else:
         game = Game.get_by_key_name(game_key)
